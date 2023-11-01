@@ -32,14 +32,14 @@ func extractSubreddits(resp map[string]any) []map[string]any {
 		if v.(map[string]any)["kind"].(string) == "t5" {
 			data := v.(map[string]any)["data"].(map[string]any)
 			sr_collection = append(sr_collection, map[string]any{
-				"name":               data["name"],
-				"display_name":       data["display_name"],
-				"title":              data["title"],
-				"subscriber":         int64(data["subscribers"].(float64)),
-				"public_description": data["public_description"],
-				"category":           data["advertiser_category"],
-				"description":        data["description"].(string),
-				"already_subscribed": data["user_is_subscriber"].(bool),
+				"name":               data["name"],                         //unique name with t5_ prefix
+				"display_name":       data["display_name"],                 //url name
+				"title":              data["title"],                        //fancy long name
+				"subscriber":         int64(data["subscribers"].(float64)), //number of subscribers
+				"public_description": data["public_description"],           //short description
+				"category":           data["advertiser_category"],          //optional category of the subreddit
+				"description":        data["description"].(string),         //long description
+				"already_subscribed": data["user_is_subscriber"].(bool),    //if i am already subscribed
 			})
 		}
 	}

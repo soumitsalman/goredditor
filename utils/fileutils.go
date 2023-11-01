@@ -2,21 +2,9 @@ package utils
 
 import (
 	"encoding/json"
-	"io"
 	"log"
 	"os"
 )
-
-func DeserialzeJsonBlob[T any](reader io.Reader) (T, error) {
-	var decoder = json.NewDecoder(reader)
-	var data T
-	if err := decoder.Decode(&data); err != nil {
-		log.Printf("Error deserializing to data of type %T: %v\n", data, err)
-		return data, err
-	} else {
-		return data, nil
-	}
-}
 
 func WriteDataToJsonFile[T any](data *T, outFile string) error {
 	if j_bytes, err := json.Marshal(data); err != nil {
@@ -34,6 +22,6 @@ func ReadDataFromJsonFile[T any](configFilePath string) (T, error) {
 		return data, err
 	} else {
 		defer configFile.Close()
-		return DeserialzeJsonBlob[T](configFile)
+		return DeserialzeJson[T](configFile)
 	}
 }
