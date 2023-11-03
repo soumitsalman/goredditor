@@ -1,6 +1,6 @@
 This is an open source golang library for using https://www.reddit.com/dev/api/
 
-**Primary functionality it supports**
+**Current functionalities**
 - Authenticate and re-authenticate: Requires going through basic auth first
 - Retrieving data of "me"
 - Retrieving `hot`, `top`, `best` posts from the users landing page and also for a specified `subreddit`
@@ -19,3 +19,7 @@ This is an open source golang library for using https://www.reddit.com/dev/api/
 - [ ] Adding search functionality to retrieve posts and `subreddit`s
 - [ ] Stabilizing the code with better error handling and input validation
 - [ ] Retrieving comments of a given thread
+- [ ] Publish the api-s as golang libraries for everyone to use
+
+**Contact**
+If you want to contribute to the code base please feel free to do so. If you have any question feel free to reachout to me
