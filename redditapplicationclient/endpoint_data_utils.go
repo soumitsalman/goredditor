@@ -1,4 +1,4 @@
-package redditclient
+package redditapplicationclient
 
 import "time"
 
@@ -45,15 +45,16 @@ func extractSubreddits(resp map[string]any) []map[string]any {
 		v := ch.(map[string]any)
 		if v["kind"].(string) == "t5" {
 			data := v["data"].(map[string]any)
+
 			collection = append(collection, map[string]any{
-				"name":               data["name"],                         //unique name with t5_ prefix
-				"display_name":       data["display_name"],                 //url name
-				"title":              data["title"],                        //fancy long name
-				"subscriber":         int64(data["subscribers"].(float64)), //number of subscribers
-				"public_description": data["public_description"],           //short description
-				"category":           data["advertiser_category"],          //optional category of the subreddit
-				"description":        data["description"].(string),         //long description
-				"already_subscribed": data["user_is_subscriber"].(bool),    //if i am already subscribed
+				"name":               data["name"],                //unique name with t5_ prefix
+				"display_name":       data["display_name"],        //url name
+				"title":              data["title"],               //fancy long name
+				"subscriber":         data["subscribers"],         //number of subscribers
+				"public_description": data["public_description"],  //short description
+				"category":           data["advertiser_category"], //optional category of the subreddit
+				"description":        data["description"],         //long description
+				"already_subscribed": data["user_is_subscriber"],  //if i am already subscribed
 			})
 		}
 	}

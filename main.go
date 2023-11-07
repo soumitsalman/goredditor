@@ -3,12 +3,15 @@ package main
 import (
 	"log"
 
-	"angerproject.org/redditor/redditclient"
+	redditclient "angerproject.org/redditor/redditapplicationclient"
 	"angerproject.org/redditor/utils"
 )
 
 const data_dump_folder = "C:\\Users\\soumi\\go-stuff\\reddit_data_dump\\"
 const config_file = data_dump_folder + "config.json"
+
+// TODO: in future load it from DB
+var areas_of_interest = []string{"cyber security", "new software products", "software development", "api integration", "generative ai", "software product management", "software program management", "autonomous vehicle", "cloud infrastructure", "information security"}
 
 func authenticate(client *redditclient.RedditClient) bool {
 	if is_new_token, err := client.Authenticate(); err != nil {
@@ -21,9 +24,10 @@ func authenticate(client *redditclient.RedditClient) bool {
 	return true
 }
 
-func collectSubscribedSubreddits(client *redditclient.RedditClient) {
+func collectSubscribedSubreddits(client *redditclient.RedditClient) []map[string]any {
 	if sr_collection, err := client.Subreddits(); err != nil {
 		log.Printf("Getting subreddits failed: %v\n", err)
+		return []map[string]any{}
 	} else {
 		var filename = data_dump_folder + "joined_subreddits.json"
 		if utils.WriteDataToJsonFile(&sr_collection, filename) == nil {
@@ -31,23 +35,39 @@ func collectSubscribedSubreddits(client *redditclient.RedditClient) {
 		} else {
 			log.Println("Failed to save subreddit lists")
 		}
+		return sr_collection
 	}
 }
 
-func collectRecommendedSubreddits(client *redditclient.RedditClient) {
-	if recommended_sr, err := client.SimilarSubreddits(); err != nil {
-		log.Printf("Getting recommended subreddits failed: %v\n", err)
-	} else {
-		var filename = data_dump_folder + "recommended_subreddits.json"
-		if utils.WriteDataToJsonFile(&recommended_sr, filename) == nil {
-			log.Println("Saved recommened subreddits in " + filename)
-		} else {
-			log.Println("Failed to save recommended subreddit lists")
+func collectRecommendedSubreddits(client *redditclient.RedditClient, existing_sr []map[string]any) []map[string]any {
+	var collection []map[string]any = existing_sr
+
+	// search with areas of interest
+	for _, area := range areas_of_interest {
+		if res, err := client.SubredditSearch(area, -1); err == nil {
+			collection = append(collection, res...)
 		}
 	}
+
+	// collect similar subreddits
+	var similar []map[string]any
+	for _, sr := range collection {
+		if res, err := client.SimilarSubreddits(sr["name"].(string)); err == nil {
+			similar = append(similar, res...)
+		}
+	}
+	collection = append(collection, similar...)
+
+	var filename = data_dump_folder + "recommended_subreddits.json"
+	if utils.WriteDataToJsonFile(&collection, filename) == nil {
+		log.Println("Saved recommened subreddits in " + filename)
+	} else {
+		log.Println("Failed to save recommended subreddit lists")
+	}
+	return collection
 }
 
-func collectPosts(client *redditclient.RedditClient) {
+func collectPosts(client *redditclient.RedditClient) []map[string]any {
 	var post_types = []string{"hot", "top", "best"}
 	var collection []map[string]any
 
@@ -66,6 +86,14 @@ func collectPosts(client *redditclient.RedditClient) {
 	} else {
 		log.Println("Failed to save posts")
 	}
+	return collection
+}
+
+func collectContents(client *redditclient.RedditClient) {
+	sr := collectSubscribedSubreddits(client)
+	collectRecommendedSubreddits(client, sr)
+	collectPosts(client)
+
 }
 
 // primary orchestrator
@@ -78,9 +106,7 @@ func main() {
 	}
 
 	//daily collection
-	collectSubscribedSubreddits(&client)
-	collectRecommendedSubreddits(&client)
-	collectPosts(&client)
+	collectContents(&client)
 
 	/*
 		sr_name := "reddit_api_test"

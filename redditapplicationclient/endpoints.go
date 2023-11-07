@@ -1,4 +1,4 @@
-package redditclient
+package redditapplicationclient
 
 import (
 	"fmt"
@@ -70,26 +70,51 @@ func (client *RedditClient) Subreddits() ([]map[string]any, error) {
 	}
 }
 
-// get subreddits that are suggested based on existing subscritpion
+// get subreddits based on a given
 // does not return unique list of items and may have duplicates
-func (client *RedditClient) SimilarSubreddits() ([]map[string]any, error) {
+func (client *RedditClient) SimilarSubreddits(sr_name string) ([]map[string]any, error) {
+	var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/api/similar_subreddits?sr_fullnames=" + sr_name)
+	if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
+		return nil, err
+	} else {
+		return extractSubreddits(resp), nil
+	}
+	/*
+		current_sr_collection, err := client.Subreddits()
+		if err != nil {
+			return nil, err
+		}
 
-	current_sr_collection, err := client.Subreddits()
+		var sr_collection []map[string]any
+		for _, sr := range current_sr_collection {
+			// this has to queried using unique name of the subreddit (e.g t5_ffffff)
+			var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/api/similar_subreddits?sr_fullnames=" + sr["name"].(string))
+			if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
+				return nil, err
+			} else {
+				sr_collection = append(sr_collection, extractSubreddits(resp)[:]...)
+			}
+		}
+		return sr_collection, nil
+	*/
+}
+
+// uses the query string to look for sub-reddits
+// min_users is used to filter for sub-reddits that has at least min_users number of users
+func (client *RedditClient) SubredditSearch(search_query string, min_users int) ([]map[string]any, error) {
+	q, err := url.Parse(search_query)
 	if err != nil {
+		log.Printf("Invalid search query %v\n", err)
 		return nil, err
 	}
-
-	var sr_collection []map[string]any
-	for _, sr := range current_sr_collection {
-		// this has to queried using unique name of the subreddit (e.g t5_ffffff)
-		var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/api/similar_subreddits?sr_fullnames=" + sr["name"].(string))
-		if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
-			return nil, err
-		} else {
-			sr_collection = append(sr_collection, extractSubreddits(resp)[:]...)
-		}
+	search_str := q.String()
+	var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/subreddits/search?q=" + search_str)
+	if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
+		return nil, err
+	} else {
+		// TODO: filter for min_users
+		return extractSubreddits(resp), nil
 	}
-	return sr_collection, nil
 }
 
 // gets my posts: hot, best and top depending what is specified through post_type

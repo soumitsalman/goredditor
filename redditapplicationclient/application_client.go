@@ -1,4 +1,4 @@
-package redditclient
+package redditapplicationclient
 
 import (
 	"context"
