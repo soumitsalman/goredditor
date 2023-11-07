@@ -67,19 +67,29 @@ func collectRecommendedSubreddits(client *redditclient.RedditClient, existing_sr
 	return collection
 }
 
-func collectPosts(client *redditclient.RedditClient) []map[string]any {
-	var post_types = []string{"hot", "top", "best"}
-	var collection []map[string]any
+func collectPosts(client *redditclient.RedditClient, sr []map[string]any) []map[string]any {
 
-	for _, pt := range post_types {
-		if post_collection, err := client.Posts("", pt); err != nil {
-			log.Printf("Getting %v failed: %v\n", pt, err)
-		} else {
-			collection = append(collection, post_collection...)
-			log.Printf("Retrieved %v posts\n", pt)
+	var collection []map[string]any // this is the value to be return
+
+	// prepping the scope of subreddits to search for.
+	var sr_in_scope = []string{""}
+	for _, v := range sr {
+		sr_in_scope = append(sr_in_scope, v["display_name"].(string))
+	}
+
+	// for subreddit in scope each post type iterate for each
+	for _, subreddit := range sr_in_scope {
+		for _, pt := range []string{"hot", "top", "best"} {
+			if post_collection, err := client.Posts(subreddit, pt); err != nil {
+				log.Printf("Getting %v post from r/%v failed: %v\n", pt, subreddit, err)
+			} else {
+				collection = append(collection, post_collection...)
+				log.Printf("Retrieved %v posts from r/%v\n", pt, subreddit)
+			}
 		}
 	}
 
+	// save it in a file
 	var filename = data_dump_folder + "posts.json"
 	if utils.WriteDataToJsonFile(&collection, filename) == nil {
 		log.Println("Saved posts results in ", filename)
@@ -89,24 +99,16 @@ func collectPosts(client *redditclient.RedditClient) []map[string]any {
 	return collection
 }
 
+// this is for pure data collection
 func collectContents(client *redditclient.RedditClient) {
 	sr := collectSubscribedSubreddits(client)
 	collectRecommendedSubreddits(client, sr)
-	collectPosts(client)
-
+	collectPosts(client, sr)
 }
 
-// primary orchestrator
-func main() {
-
-	client, _ := redditclient.NewClientFromConfigFile(config_file)
-
-	if !authenticate(&client) {
-		return
-	}
-
-	//daily collection
-	collectContents(&client)
+// this is for ONLY making posts and subscribing to new subreddits
+func takeActions(client *redditclient.RedditClient) {
+	print("TODO: implement it")
 
 	/*
 		sr_name := "reddit_api_test"
@@ -139,4 +141,18 @@ func main() {
 			log.Printf("Successfully commented on post [%v]\n", post_id)
 		}
 	*/
+}
+
+// primary orchestrator
+func main() {
+
+	client, _ := redditclient.NewClientFromConfigFile(config_file)
+
+	if !authenticate(&client) {
+		return
+	}
+
+	//daily collection
+	collectContents(&client)
+
 }
