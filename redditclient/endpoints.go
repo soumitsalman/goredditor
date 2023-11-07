@@ -36,7 +36,16 @@ func (client *RedditClient) Authenticate() (bool, error) {
 	unpwData.Set("username", client.creds.Username)
 	unpwData.Set("password", client.creds.Password)
 
-	req := client.buildPostActionReqeustWithUrlEncoding(REDDIT_AUTH_URL, unpwData)
+	req := utils.BuildHttpRequest(
+		"POST",
+		REDDIT_AUTH_URL,
+		utils.SerializeUrlValues(unpwData),
+		"url",
+		utils.MakeBasicAuthToken(client.creds.ClientId, client.creds.ClientSecret),
+		client.getApplicationFullName(),
+		&client.ctx,
+	)
+
 	if respBody, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
 		return false, err
 	} else {
@@ -198,17 +207,3 @@ func (client *RedditClient) buildPostActionReqeustWithUrlEncoding(endpoint_url s
 		&client.ctx,
 	)
 }
-
-/*
-func (client *RedditClient) buildPostActionReqeust(endpoint_url string, payload io.Reader, payload_encoding string) *http.Request {
-	return utils.BuildHttpRequest(
-		"POST",
-		endpoint_url,
-		payload,
-		payload_encoding,
-		utils.MakeBearerToken(client.creds.LastAccessToken),
-		client.getApplicationFullName(),
-		&client.ctx,
-	)
-}
-*/
