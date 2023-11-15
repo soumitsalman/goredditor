@@ -1,4 +1,4 @@
-package redditapplicationclient
+package redditapplication
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ func (err *SubmissionError) Error() string {
 // authenticates client. Checks if the last known access token is still valid. If not it makes a re-authentication request
 // return true if there was a new auth token or else returns false.
 // error is returned when auth was failed
-func (client *RedditClient) Authenticate() (bool, error) {
+func (client *RedditorApplication) Authenticate() (bool, error) {
 
 	if !utils.IsAuthTokenExpired(client.creds.LastAccessToken) {
 		log.Println("Last access token is still valid. No need to reauthenticate")
@@ -41,7 +41,7 @@ func (client *RedditClient) Authenticate() (bool, error) {
 		REDDIT_AUTH_URL,
 		utils.SerializeUrlValues(unpwData),
 		"url",
-		utils.MakeBasicAuthToken(client.creds.ClientId, client.creds.ClientSecret),
+		utils.MakeBasicAuthToken(client.creds.ApplicationId, client.creds.ApplicationSecret),
 		client.getApplicationFullName(),
 		&client.ctx,
 	)
@@ -55,13 +55,13 @@ func (client *RedditClient) Authenticate() (bool, error) {
 }
 
 // gets my details
-func (client *RedditClient) Me() (map[string]any, error) {
+func (client *RedditorApplication) Me() (map[string]any, error) {
 	var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/api/v1/me")
 	return utils.SendHttpRequest(req, client.httpClient)
 }
 
 // get subreddits that user is already part of
-func (client *RedditClient) Subreddits() ([]map[string]any, error) {
+func (client *RedditorApplication) Subreddits() ([]map[string]any, error) {
 	var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/subreddits/mine/subscriber")
 	if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
 		return nil, err
@@ -72,36 +72,18 @@ func (client *RedditClient) Subreddits() ([]map[string]any, error) {
 
 // get subreddits based on a given
 // does not return unique list of items and may have duplicates
-func (client *RedditClient) SimilarSubreddits(sr_name string) ([]map[string]any, error) {
+func (client *RedditorApplication) SimilarSubreddits(sr_name string) ([]map[string]any, error) {
 	var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/api/similar_subreddits?sr_fullnames=" + sr_name)
 	if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
 		return nil, err
 	} else {
 		return extractSubreddits(resp), nil
 	}
-	/*
-		current_sr_collection, err := client.Subreddits()
-		if err != nil {
-			return nil, err
-		}
-
-		var sr_collection []map[string]any
-		for _, sr := range current_sr_collection {
-			// this has to queried using unique name of the subreddit (e.g t5_ffffff)
-			var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/api/similar_subreddits?sr_fullnames=" + sr["name"].(string))
-			if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
-				return nil, err
-			} else {
-				sr_collection = append(sr_collection, extractSubreddits(resp)[:]...)
-			}
-		}
-		return sr_collection, nil
-	*/
 }
 
 // uses the query string to look for sub-reddits
 // min_users is used to filter for sub-reddits that has at least min_users number of users
-func (client *RedditClient) SubredditSearch(search_query string, min_users int) ([]map[string]any, error) {
+func (client *RedditorApplication) SubredditSearch(search_query string, min_users int) ([]map[string]any, error) {
 	q, err := url.Parse(search_query)
 	if err != nil {
 		log.Printf("Invalid search query %v\n", err)
@@ -119,7 +101,7 @@ func (client *RedditClient) SubredditSearch(search_query string, min_users int) 
 
 // gets my posts: hot, best and top depending what is specified through post_type
 // if sub_reddit display name is not specified it will pull from the overall list of posts instead of a specific subreddit
-func (client *RedditClient) Posts(sub_reddit string, post_type string) ([]map[string]any, error) {
+func (client *RedditorApplication) Posts(sub_reddit string, post_type string) ([]map[string]any, error) {
 	var url = REDDIT_DATA_URL
 
 	//url correctness check
@@ -145,7 +127,7 @@ func (client *RedditClient) Posts(sub_reddit string, post_type string) ([]map[st
 }
 
 // joins a subreddit. sr_name should be the display name of the subreddit. NOT the unique id
-func (client *RedditClient) Subscribe(sr_name string) (bool, error) {
+func (client *RedditorApplication) Subscribe(sr_name string) (bool, error) {
 	data := url.Values{}
 	data.Set("action", "sub")
 	data.Set("skip_inital_defaults", "true")
@@ -163,7 +145,7 @@ func (client *RedditClient) Subscribe(sr_name string) (bool, error) {
 // submits a post with a specified title and text_content in a given subreddit
 // sr_name should be the display name and not the unique name
 // if text_context is a valid url then it will automatically submit it as a link
-func (client *RedditClient) Submit(title string, text_content string, sr_name string) (map[string]any, error) {
+func (client *RedditorApplication) Submit(title string, text_content string, sr_name string) (map[string]any, error) {
 	data := url.Values{}
 	data.Set("api_type", "json")
 	data.Set("sr", sr_name)
@@ -195,7 +177,7 @@ func (client *RedditClient) Submit(title string, text_content string, sr_name st
 // posts comment_text as comment to a given post or comment (parent_name)
 // parent_name has to be the unique id with t3_ or t1_
 // TODO: currently it is returning bool. Change to return the metadata of the comment
-func (client *RedditClient) Comment(comment_text string, parent_name string) (bool, error) {
+func (client *RedditorApplication) Comment(comment_text string, parent_name string) (bool, error) {
 	data := url.Values{}
 	data.Set("parent", parent_name)
 	data.Set("text", comment_text)
@@ -209,7 +191,7 @@ func (client *RedditClient) Comment(comment_text string, parent_name string) (bo
 }
 
 // internal function wrapping over an httputils function
-func (client *RedditClient) buildGetActionRequest(endpoint_url string) *http.Request {
+func (client *RedditorApplication) buildGetActionRequest(endpoint_url string) *http.Request {
 	return utils.BuildHttpRequest(
 		"GET",        //method
 		endpoint_url, //uri
@@ -221,7 +203,7 @@ func (client *RedditClient) buildGetActionRequest(endpoint_url string) *http.Req
 	)
 }
 
-func (client *RedditClient) buildPostActionReqeustWithUrlEncoding(endpoint_url string, payload url.Values) *http.Request {
+func (client *RedditorApplication) buildPostActionReqeustWithUrlEncoding(endpoint_url string, payload url.Values) *http.Request {
 	return utils.BuildHttpRequest(
 		"POST",
 		endpoint_url,

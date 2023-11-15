@@ -1,4 +1,4 @@
-package redditapplicationclient
+package redditapplication
 
 import "time"
 
@@ -29,8 +29,11 @@ func extractPosts(resp map[string]any) []map[string]any {
 					"created":                  time.Unix(int64(data["created"].(float64)), 0),
 					"container_sr_subscribers": int64(data["subreddit_subscribers"].(float64)),
 					"category":                 data["link_flair_text"],
-					"post_score":               int(data["score"].(float64)),
-					"post_content":             data["selftext"].(string),
+					"post_score":               data["score"],
+					"post_content":             data["selftext"],
+					"name":                     data["name"],
+					"author":                   data["author"],
+					"url":                      data["url"],
 				})
 			}
 		}

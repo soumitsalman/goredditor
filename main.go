@@ -1,114 +1,21 @@
 package main
 
 import (
-	"log"
+	"fmt"
 
-	redditclient "angerproject.org/redditor/redditapplicationclient"
-	"angerproject.org/redditor/utils"
+	rapp "angerproject.org/redditor/redditapplication"
 )
 
-const data_dump_folder = "C:\\Users\\soumi\\go-stuff\\reddit_data_dump\\"
-const config_file = data_dump_folder + "config.json"
-
-// TODO: in future load it from DB
-var areas_of_interest = []string{"cyber security", "new software products", "software development", "api integration", "generative ai", "software product management", "software program management", "autonomous vehicle", "cloud infrastructure", "information security"}
-
-func authenticate(client *redditclient.RedditClient) bool {
-	if is_new_token, err := client.Authenticate(); err != nil {
-		log.Printf("Auth failed: %v\n", err)
-		return false
-	} else if is_new_token {
-		log.Printf("Got new auth token: \n")
-		redditclient.SaveClientToConfigFile(client, config_file)
-	}
-	return true
-}
-
-func collectSubscribedSubreddits(client *redditclient.RedditClient) []map[string]any {
-	if sr_collection, err := client.Subreddits(); err != nil {
-		log.Printf("Getting subreddits failed: %v\n", err)
-		return []map[string]any{}
-	} else {
-		var filename = data_dump_folder + "joined_subreddits.json"
-		if utils.WriteDataToJsonFile(&sr_collection, filename) == nil {
-			log.Println("Saved subreddits in " + filename)
-		} else {
-			log.Println("Failed to save subreddit lists")
-		}
-		return sr_collection
-	}
-}
-
-func collectRecommendedSubreddits(client *redditclient.RedditClient, existing_sr []map[string]any) []map[string]any {
-	var collection []map[string]any = existing_sr
-
-	// search with areas of interest
-	for _, area := range areas_of_interest {
-		if res, err := client.SubredditSearch(area, -1); err == nil {
-			collection = append(collection, res...)
-		}
-	}
-
-	// collect similar subreddits
-	var similar []map[string]any
-	for _, sr := range collection {
-		if res, err := client.SimilarSubreddits(sr["name"].(string)); err == nil {
-			similar = append(similar, res...)
-		}
-	}
-	collection = append(collection, similar...)
-
-	var filename = data_dump_folder + "recommended_subreddits.json"
-	if utils.WriteDataToJsonFile(&collection, filename) == nil {
-		log.Println("Saved recommened subreddits in " + filename)
-	} else {
-		log.Println("Failed to save recommended subreddit lists")
-	}
-	return collection
-}
-
-func collectPosts(client *redditclient.RedditClient, sr []map[string]any) []map[string]any {
-
-	var collection []map[string]any // this is the value to be return
-
-	// prepping the scope of subreddits to search for.
-	var sr_in_scope = []string{""}
-	for _, v := range sr {
-		sr_in_scope = append(sr_in_scope, v["display_name"].(string))
-	}
-
-	// for subreddit in scope each post type iterate for each
-	for _, subreddit := range sr_in_scope {
-		for _, pt := range []string{"hot", "top", "best"} {
-			if post_collection, err := client.Posts(subreddit, pt); err != nil {
-				log.Printf("Getting %v post from r/%v failed: %v\n", pt, subreddit, err)
-			} else {
-				collection = append(collection, post_collection...)
-				log.Printf("Retrieved %v posts from r/%v\n", pt, subreddit)
-			}
-		}
-	}
-
-	// save it in a file
-	var filename = data_dump_folder + "posts.json"
-	if utils.WriteDataToJsonFile(&collection, filename) == nil {
-		log.Println("Saved posts results in ", filename)
-	} else {
-		log.Println("Failed to save posts")
-	}
-	return collection
-}
-
 // this is for pure data collection
-func collectContents(client *redditclient.RedditClient) {
-	sr := collectSubscribedSubreddits(client)
-	collectRecommendedSubreddits(client, sr)
-	collectPosts(client, sr)
+func collectContents(user *rapp.RedditorUser) {
+	user.GetExistingSubreddits()
+	user.GetNewSubreddits()
+	user.GetNewPosts()
 }
 
 // this is for ONLY making posts and subscribing to new subreddits
-func takeActions(client *redditclient.RedditClient) {
-	print("TODO: implement it")
+func takeActions(user *rapp.RedditorUser) {
+	fmt.Println("TODO: implement it")
 
 	/*
 		sr_name := "reddit_api_test"
@@ -146,13 +53,14 @@ func takeActions(client *redditclient.RedditClient) {
 // primary orchestrator
 func main() {
 
-	client, _ := redditclient.NewClientFromConfigFile(config_file)
+	user := rapp.NewUserConnection("soumitsr@gmail.com")
 
-	if !authenticate(&client) {
+	if !user.Authenticate() {
 		return
 	}
 
 	//daily collection
-	collectContents(&client)
+	collectContents(&user)
+	takeActions(&user)
 
 }
