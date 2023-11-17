@@ -1,6 +1,7 @@
 package redditapplication
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -35,8 +36,7 @@ func NewUserConnection(userId string) RedditorUser {
 	userSession.client.creds.Username = os.Getenv("REDDIT_LOCAL_USER_NAME")
 	userSession.client.creds.Password = os.Getenv("REDDIT_LOCAL_USER_PW")
 	userSession.client.creds.LastAccessToken = os.Getenv("REDDIT_LOCAL_USER_AUTH_TOKEN")
-	//TODO: remove this line later
-	log.Println(userSession.client.creds)
+
 	return userSession
 }
 
@@ -55,7 +55,8 @@ func (user *RedditorUser) Authenticate() bool {
 	} else if is_new_token {
 		defer log.Printf("Got new auth token: \n")
 		//save to local env variable for now
-		os.Setenv("REDDIT_LOCAL_USER_AUTH_TOKEN", user.client.creds.LastAccessToken)
+		fmt.Println(user.client.creds.LastAccessToken)
+		//os.Setenv("REDDIT_LOCAL_USER_AUTH_TOKEN", user.client.creds.LastAccessToken)
 	}
 	return true
 }

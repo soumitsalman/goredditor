@@ -26,14 +26,12 @@ func ReadDataFromJsonFile[T any](configFilePath string) (T, error) {
 	}
 }
 
-const DATASTORE_DIR = "C:\\Users\\soumi\\go-stuff\\reddit_data_dump\\"
-
 func SaveToFile(userId string, topic string, data *[]map[string]any) {
 	var content = map[string]any{
 		"topic": topic,
 		topic:   data,
 	}
-	var filename = DATASTORE_DIR + userId + "_" + topic + ".json"
+	var filename = os.Getenv("DATASTORE_LOCATION") + userId + "_" + topic + ".json"
 	if WriteDataToJsonFile(&content, filename) == nil {
 		log.Printf("Saved %s in %s\n", topic, filename)
 	} else {

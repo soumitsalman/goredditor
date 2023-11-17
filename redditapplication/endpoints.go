@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"slices"
 
 	"angerproject.org/redditor/utils"
 )
@@ -105,10 +104,12 @@ func (client *RedditorApplication) Posts(sub_reddit string, post_type string) ([
 	var url = REDDIT_DATA_URL
 
 	//url correctness check
+	/* TODO: check for parameter
 	if !slices.Contains([]string{"hot", "best", "top"}, post_type) {
 		post_type = "hot"
 		log.Printf("Invalid post_type %v. Going with hot posts\n", post_type)
 	}
+	*/
 	if utils.HasWhiteSpace(sub_reddit) {
 		log.Printf("Invalid sub-reddit name: %v. Going with overall profile's %v posts\n", sub_reddit, post_type)
 	} else if sub_reddit == "" {

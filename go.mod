@@ -1,6 +1,6 @@
 module angerproject.org/redditor
 
-go 1.21.3
+go 1.21
 
 require github.com/golang-jwt/jwt v3.2.2+incompatible
 
