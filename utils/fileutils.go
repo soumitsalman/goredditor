@@ -6,18 +6,18 @@ import (
 	"os"
 )
 
-func WriteDataToJsonFile[T any](data *T, outFile string) error {
+func WriteDataToJsonFile[T any](data *T, filepath string) error {
 	if j_bytes, err := json.Marshal(data); err != nil {
 		return err
 	} else {
-		return os.WriteFile(outFile, j_bytes, os.FileMode(0644))
+		return os.WriteFile(filepath, j_bytes, os.FileMode(0644))
 	}
 }
 
 // loading application configuration. In future making this retrieve from a DB
-func ReadDataFromJsonFile[T any](configFilePath string) (T, error) {
-	if configFile, err := os.Open(configFilePath); err != nil {
-		log.Printf("Failed loading configuration file %v. Error: %v\n", configFilePath, err)
+func ReadDataFromJsonFile[T any](filepath string) (T, error) {
+	if configFile, err := os.Open(filepath); err != nil {
+		log.Printf("Failed loading configuration file %v. Error: %v\n", filepath, err)
 		var data T
 		return data, err
 	} else {
@@ -26,7 +26,7 @@ func ReadDataFromJsonFile[T any](configFilePath string) (T, error) {
 	}
 }
 
-func SaveToFile(userId string, topic string, data *[]map[string]any) {
+func SaveData(userId string, topic string, data any) {
 	var content = map[string]any{
 		"topic": topic,
 		topic:   data,
@@ -36,5 +36,15 @@ func SaveToFile(userId string, topic string, data *[]map[string]any) {
 		log.Printf("Saved %s in %s\n", topic, filename)
 	} else {
 		log.Printf("Failed to save %s\n", topic)
+	}
+}
+
+func ReadData(userId string, topic string) ([]map[string]any, error) {
+	var filename = os.Getenv("DATASTORE_LOCATION") + userId + "_" + topic + ".json"
+	if content, err := ReadDataFromJsonFile[[]map[string]any](filename); err != nil {
+		return content, nil
+	} else {
+		log.Println("Failed loading file ", filename)
+		return nil, err
 	}
 }

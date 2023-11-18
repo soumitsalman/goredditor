@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-
 	"angerproject.org/redditor/utils"
 )
 
@@ -45,44 +44,46 @@ func (client *RedditorApplication) Authenticate() (bool, error) {
 		&client.ctx,
 	)
 
-	if respBody, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
+	if respBody, err := utils.SendHttpRequest[AuthenticationData](req, client.httpClient); err != nil {
 		return false, err
 	} else {
-		client.creds.LastAccessToken = respBody["access_token"].(string)
+		client.creds.LastAccessToken = respBody.AuthToken
 		return true, nil
 	}
 }
 
+// <START Retrieval-Codes>
+
 // gets my details
 func (client *RedditorApplication) Me() (map[string]any, error) {
 	var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/api/v1/me")
-	return utils.SendHttpRequest(req, client.httpClient)
+	return utils.SendHttpRequest[UnmappedData](req, client.httpClient)
 }
 
 // get subreddits that user is already part of
-func (client *RedditorApplication) Subreddits() ([]map[string]any, error) {
+func (client *RedditorApplication) Subreddits() ([]SubredditData, error) {
 	var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/subreddits/mine/subscriber")
-	if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
+	if resp, err := utils.SendHttpRequest[ListingData[SubredditData]](req, client.httpClient); err != nil {
 		return nil, err
 	} else {
-		return extractSubreddits(resp), nil
+		return extractFromOneListing[SubredditData](resp), nil
 	}
 }
 
 // get subreddits based on a given
 // does not return unique list of items and may have duplicates
-func (client *RedditorApplication) SimilarSubreddits(sr_name string) ([]map[string]any, error) {
+func (client *RedditorApplication) SimilarSubreddits(sr_name string) ([]SubredditData, error) {
 	var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/api/similar_subreddits?sr_fullnames=" + sr_name)
-	if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
+	if resp, err := utils.SendHttpRequest[ListingData[SubredditData]](req, client.httpClient); err != nil {
 		return nil, err
 	} else {
-		return extractSubreddits(resp), nil
+		return extractFromOneListing[SubredditData](resp), nil
 	}
 }
 
 // uses the query string to look for sub-reddits
 // min_users is used to filter for sub-reddits that has at least min_users number of users
-func (client *RedditorApplication) SubredditSearch(search_query string, min_users int) ([]map[string]any, error) {
+func (client *RedditorApplication) SubredditSearch(search_query string, min_users int) ([]SubredditData, error) {
 	q, err := url.Parse(search_query)
 	if err != nil {
 		log.Printf("Invalid search query %v\n", err)
@@ -90,17 +91,17 @@ func (client *RedditorApplication) SubredditSearch(search_query string, min_user
 	}
 	search_str := q.String()
 	var req = client.buildGetActionRequest(REDDIT_DATA_URL + "/subreddits/search?q=" + search_str)
-	if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
+	if resp, err := utils.SendHttpRequest[ListingData[SubredditData]](req, client.httpClient); err != nil {
 		return nil, err
 	} else {
 		// TODO: filter for min_users
-		return extractSubreddits(resp), nil
+		return extractFromOneListing[SubredditData](resp), nil
 	}
 }
 
 // gets my posts: hot, best and top depending what is specified through post_type
 // if sub_reddit display name is not specified it will pull from the overall list of posts instead of a specific subreddit
-func (client *RedditorApplication) Posts(sub_reddit string, post_type string) ([]map[string]any, error) {
+func (client *RedditorApplication) Posts(sub_reddit string, post_type string) ([]PostData, error) {
 	var url = REDDIT_DATA_URL
 
 	//url correctness check
@@ -120,12 +121,28 @@ func (client *RedditorApplication) Posts(sub_reddit string, post_type string) ([
 	}
 
 	var req = client.buildGetActionRequest(url + "/" + post_type)
-	if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
+	if resp, err := utils.SendHttpRequest[ListingData[PostData]](req, client.httpClient); err != nil {
 		return nil, err
 	} else {
-		return extractPosts(resp), nil
+		return extractFromOneListing[PostData](resp), nil
 	}
 }
+
+func (client *RedditorApplication) RetrieveComments(post PostData) ([]CommentData, error) {
+	url := fmt.Sprintf("%s/r/%s/comments/%s", REDDIT_DATA_URL, post.Subreddit, post.Id)
+	var req = client.buildGetActionRequest(url)
+
+	if resp, err := utils.SendHttpRequest[[]ListingData[CommentData]](req, client.httpClient); err != nil {
+		return nil, err
+	} else {
+
+		return extractFromMultipleListing[CommentData](resp), nil
+	}
+}
+// <END Retrieval-Code>
+
+
+// <START State-Modifying-Code>
 
 // joins a subreddit. sr_name should be the display name of the subreddit. NOT the unique id
 func (client *RedditorApplication) Subscribe(sr_name string) (bool, error) {
@@ -136,7 +153,7 @@ func (client *RedditorApplication) Subscribe(sr_name string) (bool, error) {
 
 	var req = client.buildPostActionReqeustWithUrlEncoding(REDDIT_DATA_URL+"/api/subscribe", data)
 
-	if _, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
+	if _, err := utils.SendHttpRequest[UnmappedData](req, client.httpClient); err != nil {
 		return false, err
 	} else {
 		return true, nil
@@ -146,7 +163,7 @@ func (client *RedditorApplication) Subscribe(sr_name string) (bool, error) {
 // submits a post with a specified title and text_content in a given subreddit
 // sr_name should be the display name and not the unique name
 // if text_context is a valid url then it will automatically submit it as a link
-func (client *RedditorApplication) Submit(title string, text_content string, sr_name string) (map[string]any, error) {
+func (client *RedditorApplication) Submit(title string, text_content string, sr_name string) (UnmappedData, error) {
 	data := url.Values{}
 	data.Set("api_type", "json")
 	data.Set("sr", sr_name)
@@ -162,7 +179,7 @@ func (client *RedditorApplication) Submit(title string, text_content string, sr_
 	}
 
 	var req = client.buildPostActionReqeustWithUrlEncoding(REDDIT_DATA_URL+"/api/submit", data)
-	if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
+	if resp, err := utils.SendHttpRequest[UnmappedData](req, client.httpClient); err != nil {
 		return nil, err
 	} else {
 		resp_data := resp["json"].(map[string]any)
@@ -184,12 +201,16 @@ func (client *RedditorApplication) Comment(comment_text string, parent_name stri
 	data.Set("text", comment_text)
 
 	var req = client.buildPostActionReqeustWithUrlEncoding(REDDIT_DATA_URL+"/api/comment", data)
-	if resp, err := utils.SendHttpRequest(req, client.httpClient); err != nil {
+	if resp, err := utils.SendHttpRequest[UnmappedData](req, client.httpClient); err != nil {
 		return false, err
 	} else {
 		return resp["success"].(bool), nil
 	}
 }
+
+// <END State-Modifying-Code>
+
+// <START wrapper on httputils>
 
 // internal function wrapping over an httputils function
 func (client *RedditorApplication) buildGetActionRequest(endpoint_url string) *http.Request {
@@ -215,3 +236,5 @@ func (client *RedditorApplication) buildPostActionReqeustWithUrlEncoding(endpoin
 		&client.ctx,
 	)
 }
+
+//<END wrapper on httputils>

@@ -8,9 +8,10 @@ import (
 
 // this is for pure data collection
 func collectContents(user *rapp.RedditorUser) {
-	user.GetExistingSubreddits()
-	user.GetNewSubreddits()
-	user.GetNewPosts()
+	user.LoadExistingSubreddits()
+	user.LoadNewSubreddits()
+	user.LoadNewPosts()
+	user.LoadNewComments()
 }
 
 // this is for ONLY making posts and subscribing to new subreddits

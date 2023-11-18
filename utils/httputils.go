@@ -51,6 +51,7 @@ func MakeBasicAuthToken(username string, password string) string {
 	return fmt.Sprintf("Basic %v", base64.StdEncoding.EncodeToString([]byte(username+":"+password)))
 }
 
+/*
 // this sends and deserialized the payload assuming the response if json blob
 func SendHttpRequest(req *http.Request, http_client *http.Client) (map[string]any, error) {
 
@@ -63,6 +64,23 @@ func SendHttpRequest(req *http.Request, http_client *http.Client) (map[string]an
 		defer resp.Body.Close()
 		//log.Printf("Response body: %v\n", resp.Body)
 		return DeserialzeJson[map[string]any](io.Reader(resp.Body))
+	}
+}
+*/
+
+// this sends and deserialized the payload assuming the response if json blob
+func SendHttpRequest[T any](req *http.Request, http_client *http.Client) (T, error) {
+		
+	var empty T
+	if resp, err := http_client.Do(req); err != nil {
+		return empty, err
+	} else if resp.StatusCode != 200 {
+		unauthErr := HttpStatusCodeError(resp.StatusCode)
+		return empty, &unauthErr
+	} else {
+		defer resp.Body.Close()
+		//log.Printf("Response body: %v\n", resp.Body)
+		return DeserialzeJson[T](resp.Body)
 	}
 }
 

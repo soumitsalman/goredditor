@@ -14,9 +14,9 @@ const APP_CONFIG_FILE = "appconfig.json"
 type RedditorUser struct {
 	userId      string
 	client      RedditorApplication
-	existing_sr []map[string]any
-	new_sr      []map[string]any
-	new_post    []map[string]any
+	existing_sr []SubredditData
+	new_sr      []SubredditData
+	new_posts    []PostData
 }
 
 // TODO: return error if it cant find user name variables
@@ -61,12 +61,11 @@ func (user *RedditorUser) Authenticate() bool {
 	return true
 }
 
-func (user *RedditorUser) GetExistingSubreddits() []map[string]any {
+func (user *RedditorUser) LoadExistingSubreddits() []SubredditData {
 	if sr_collection, err := user.client.Subreddits(); err != nil {
 		log.Printf("Getting subreddits failed: %v\n", err)
-		user.existing_sr = []map[string]any{}
 	} else {
-		defer utils.SaveToFile(
+		defer utils.SaveData(
 			user.userId,
 			"subscribed_subreddits",
 			&sr_collection,
@@ -76,15 +75,9 @@ func (user *RedditorUser) GetExistingSubreddits() []map[string]any {
 	return user.existing_sr
 }
 
-func (user *RedditorUser) GetNewSubreddits() []map[string]any {
+func (user *RedditorUser) LoadNewSubreddits() []SubredditData {
 
-	var collection []map[string]any
-	if user.existing_sr == nil {
-		collection = user.GetExistingSubreddits()
-	} else {
-		//TODO: used cached subreddits
-		collection = user.existing_sr
-	}
+	var collection []SubredditData
 
 	// search with areas of interest
 	for _, area := range user.GetAreasOfInterest() {
@@ -94,15 +87,15 @@ func (user *RedditorUser) GetNewSubreddits() []map[string]any {
 	}
 
 	// collect similar subreddits
-	var similar []map[string]any
+	var similar []SubredditData
 	for _, sr := range collection {
-		if res, err := user.client.SimilarSubreddits(sr["name"].(string)); err == nil {
+		if res, err := user.client.SimilarSubreddits(sr.Name); err == nil {
 			similar = append(similar, res...)
 		}
 	}
 	collection = append(collection, similar...)
 
-	defer utils.SaveToFile(
+	defer utils.SaveData(
 		user.userId,
 		"recommended_subreddits",
 		&collection,
@@ -111,14 +104,14 @@ func (user *RedditorUser) GetNewSubreddits() []map[string]any {
 	return user.new_sr
 }
 
-func (user *RedditorUser) GetNewPosts() []map[string]any {
+func (user *RedditorUser) LoadNewPosts() []PostData {
 
-	var collection []map[string]any // this is the value to be return
+	var collection []PostData // this is the value to be return
 
 	// prepping the scope of subreddits to search for.
 	var sr_in_scope = []string{""}
 	for _, v := range user.existing_sr {
-		sr_in_scope = append(sr_in_scope, v["display_name"].(string))
+		sr_in_scope = append(sr_in_scope, v.DisplayName)
 	}
 
 	// for subreddit in scope each post type iterate for each
@@ -133,11 +126,26 @@ func (user *RedditorUser) GetNewPosts() []map[string]any {
 		}
 	}
 	// save it in a file
-	defer utils.SaveToFile(
+	defer utils.SaveData(
 		user.userId,
 		"posts",
 		&collection,
 	)
-	user.new_post = collection
-	return user.new_post
+	user.new_posts = collection
+	return user.new_posts
+}
+
+func (user *RedditorUser) LoadNewComments() []CommentData {
+	var collection []CommentData
+
+	for _, post := range user.new_posts {
+		if comments, err := user.client.RetrieveComments(post); err != nil {
+			log.Println("Failed retrieving comments for ", post.Name)
+		} else {
+			collection = append(collection, comments...)
+		}		
+	}
+
+	defer utils.SaveData(user.userId, "comments", &collection)
+	return collection
 }
