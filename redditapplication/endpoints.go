@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+
 	"angerproject.org/redditor/utils"
 )
 
@@ -19,15 +20,18 @@ func (err *SubmissionError) Error() string {
 	return fmt.Sprintf("Submission Errors: %v", err.messages)
 }
 
-// authenticates client. Checks if the last known access token is still valid. If not it makes a re-authentication request
-// return true if there was a new auth token or else returns false.
+// authenticates client. Checks if the last known access token is still valid.
+// If not it makes a re-authentication request
+// returns the auth token in case of success.
 // error is returned when auth was failed
-func (client *RedditorApplication) Authenticate() (bool, error) {
+func (client *RedditorApplication) Authenticate() (string, error) {
 
-	if !utils.IsAuthTokenExpired(client.creds.LastAccessToken) {
+	if !utils.IsAuthTokenExpired(client.creds.OauthToken) {
 		log.Println("Last access token is still valid. No need to reauthenticate")
-		return false, nil
+		return client.creds.OauthToken, nil
 	}
+
+	log.Println("Getting new auth token")
 
 	unpwData := url.Values{}
 	unpwData.Set("grant_type", "password")
@@ -45,10 +49,10 @@ func (client *RedditorApplication) Authenticate() (bool, error) {
 	)
 
 	if respBody, err := utils.SendHttpRequest[AuthenticationData](req, client.httpClient); err != nil {
-		return false, err
+		return "", err
 	} else {
-		client.creds.LastAccessToken = respBody.AuthToken
-		return true, nil
+		client.creds.OauthToken = respBody.AuthToken
+		return client.creds.OauthToken, nil
 	}
 }
 
@@ -66,7 +70,7 @@ func (client *RedditorApplication) Subreddits() ([]SubredditData, error) {
 	if resp, err := utils.SendHttpRequest[ListingData[SubredditData]](req, client.httpClient); err != nil {
 		return nil, err
 	} else {
-		return extractFromOneListing[SubredditData](resp), nil
+		return normalizeDataList[SubredditData](extractFromListing[SubredditData](resp)), nil
 	}
 }
 
@@ -77,7 +81,7 @@ func (client *RedditorApplication) SimilarSubreddits(sr_name string) ([]Subreddi
 	if resp, err := utils.SendHttpRequest[ListingData[SubredditData]](req, client.httpClient); err != nil {
 		return nil, err
 	} else {
-		return extractFromOneListing[SubredditData](resp), nil
+		return normalizeDataList[SubredditData](extractFromListing[SubredditData](resp)), nil
 	}
 }
 
@@ -95,7 +99,7 @@ func (client *RedditorApplication) SubredditSearch(search_query string, min_user
 		return nil, err
 	} else {
 		// TODO: filter for min_users
-		return extractFromOneListing[SubredditData](resp), nil
+		return normalizeDataList[SubredditData](extractFromListing[SubredditData](resp)), nil
 	}
 }
 
@@ -124,7 +128,7 @@ func (client *RedditorApplication) Posts(sub_reddit string, post_type string) ([
 	if resp, err := utils.SendHttpRequest[ListingData[PostData]](req, client.httpClient); err != nil {
 		return nil, err
 	} else {
-		return extractFromOneListing[PostData](resp), nil
+		return normalizeDataList[PostData](extractFromListing[PostData](resp)), nil
 	}
 }
 
@@ -136,11 +140,11 @@ func (client *RedditorApplication) RetrieveComments(post PostData) ([]CommentDat
 		return nil, err
 	} else {
 
-		return extractFromMultipleListing[CommentData](resp), nil
+		return normalizeDataList[CommentData](extractFromListingArray[CommentData](resp)), nil
 	}
 }
-// <END Retrieval-Code>
 
+// <END Retrieval-Code>
 
 // <START State-Modifying-Code>
 
@@ -219,9 +223,9 @@ func (client *RedditorApplication) buildGetActionRequest(endpoint_url string) *h
 		endpoint_url, //uri
 		nil,          //no need for payload
 		"",           //no need for payload encoding
-		utils.MakeBearerToken(client.creds.LastAccessToken), //assign auth token
-		client.getApplicationFullName(),                     //assign user-agent name
-		&client.ctx,                                         //assigning context
+		utils.MakeBearerToken(client.creds.OauthToken), //assign auth token
+		client.getApplicationFullName(),                //assign user-agent name
+		&client.ctx,                                    //assigning context
 	)
 }
 
@@ -231,7 +235,7 @@ func (client *RedditorApplication) buildPostActionReqeustWithUrlEncoding(endpoin
 		endpoint_url,
 		utils.SerializeUrlValues(payload),
 		"url",
-		utils.MakeBearerToken(client.creds.LastAccessToken),
+		utils.MakeBearerToken(client.creds.OauthToken),
 		client.getApplicationFullName(),
 		&client.ctx,
 	)

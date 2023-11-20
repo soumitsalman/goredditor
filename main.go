@@ -56,7 +56,7 @@ func main() {
 
 	user := rapp.NewUserConnection("soumitsr@gmail.com")
 
-	if !user.Authenticate() {
+	if user.Authenticate() == "" {
 		return
 	}
 

@@ -9,6 +9,7 @@ This is an open source golang library for using https://www.reddit.com/dev/api/
 - Subscribing to a new 'subreddit`
 - Creating a new post with either free-form markdown text or link in a given `subreddit`
 - Commenting on a given post or a comment
+- 
 
 **Known gaps**
 - There is no input check or validation
@@ -16,9 +17,10 @@ This is an open source golang library for using https://www.reddit.com/dev/api/
 - There is no unit test
 
 **Upcoming future improvements**
-- [ ] Adding search functionality to retrieve posts and `subreddit`s
+- [x] Adding search functionality `subreddit`s
+- [x] Adding search functionality to retrieve posts
 - [ ] Stabilizing the code with better error handling and input validation
-- [ ] Retrieving comments of a given thread
+- [x] Retrieving comments of a given thread
 - [ ] Publish the api-s as golang libraries for everyone to use
 
 **Contact**

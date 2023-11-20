@@ -8,7 +8,7 @@ import (
 )
 
 type RedditorCredentials struct {
-	LastAccessToken        string
+	OauthToken             string
 	ApplicationSecret      string
 	ApplicationName        string `json:"client_name"`
 	ApplicationId          string

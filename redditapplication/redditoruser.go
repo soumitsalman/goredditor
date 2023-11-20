@@ -1,7 +1,6 @@
 package redditapplication
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -12,16 +11,17 @@ import (
 const APP_CONFIG_FILE = "appconfig.json"
 
 type RedditorUser struct {
-	userId      string
-	client      RedditorApplication
-	existing_sr []SubredditData
-	new_sr      []SubredditData
+	Id           string
+	client       RedditorApplication
+	existing_sr  []SubredditData
+	new_sr       []SubredditData
 	new_posts    []PostData
+	new_comments []CommentData
 }
 
 // TODO: return error if it cant find user name variables
 func NewUserConnection(userId string) RedditorUser {
-	userSession := RedditorUser{userId: userId}
+	userSession := RedditorUser{Id: userId}
 	if config, err := utils.ReadDataFromJsonFile[RedditorCredentials](APP_CONFIG_FILE); err != nil {
 		log.Println("Failed loading application config")
 		return userSession
@@ -35,7 +35,7 @@ func NewUserConnection(userId string) RedditorUser {
 	userSession.client.creds.ApplicationSecret = os.Getenv("GOREDDITOR_APP_SECRET")
 	userSession.client.creds.Username = os.Getenv("REDDIT_LOCAL_USER_NAME")
 	userSession.client.creds.Password = os.Getenv("REDDIT_LOCAL_USER_PW")
-	userSession.client.creds.LastAccessToken = os.Getenv("REDDIT_LOCAL_USER_AUTH_TOKEN")
+	userSession.client.creds.OauthToken = os.Getenv("REDDIT_LOCAL_USER_AUTH_TOKEN")
 
 	return userSession
 }
@@ -45,31 +45,19 @@ func (user *RedditorUser) GetAreasOfInterest() []string {
 	return []string{"cyber security", "new software products", "software development", "api integration", "generative ai", "software product management", "software program management", "autonomous vehicle", "cloud infrastructure", "information security"}
 }
 
-// TODO: remove
-// var areas_of_interest = []string{"cyber security", "new software products", "software development", "api integration", "generative ai", "software product management", "software program management", "autonomous vehicle", "cloud infrastructure", "information security"}
-
-func (user *RedditorUser) Authenticate() bool {
-	if is_new_token, err := user.client.Authenticate(); err != nil {
+func (user *RedditorUser) Authenticate() string {
+	if _, err := user.client.Authenticate(); err != nil {
 		defer log.Printf("Auth failed: %v\n", err)
-		return false
-	} else if is_new_token {
-		defer log.Printf("Got new auth token: \n")
-		//save to local env variable for now
-		fmt.Println(user.client.creds.LastAccessToken)
-		//os.Setenv("REDDIT_LOCAL_USER_AUTH_TOKEN", user.client.creds.LastAccessToken)
+		return ""
 	}
-	return true
+	return user.client.creds.OauthToken
 }
 
 func (user *RedditorUser) LoadExistingSubreddits() []SubredditData {
 	if sr_collection, err := user.client.Subreddits(); err != nil {
 		log.Printf("Getting subreddits failed: %v\n", err)
 	} else {
-		defer utils.SaveData(
-			user.userId,
-			"subscribed_subreddits",
-			&sr_collection,
-		)
+		defer saveNewData[SubredditData](user.Id, "subscribed_subreddits", sr_collection)
 		user.existing_sr = sr_collection
 	}
 	return user.existing_sr
@@ -95,11 +83,7 @@ func (user *RedditorUser) LoadNewSubreddits() []SubredditData {
 	}
 	collection = append(collection, similar...)
 
-	defer utils.SaveData(
-		user.userId,
-		"recommended_subreddits",
-		&collection,
-	)
+	defer saveNewData[SubredditData](user.Id, "recommended_subreddits", collection)
 	user.new_sr = collection
 	return user.new_sr
 }
@@ -126,14 +110,15 @@ func (user *RedditorUser) LoadNewPosts() []PostData {
 		}
 	}
 	// save it in a file
-	defer utils.SaveData(
-		user.userId,
-		"posts",
-		&collection,
-	)
+	defer saveNewData[PostData](user.Id, "posts", collection)
 	user.new_posts = collection
 	return user.new_posts
 }
+
+// loads comments of the posts that have already been loaded
+// there is a bug in this. it loads some metadata of the parent post as well.
+// Also it does not go deepder than 1 layer of comments. The reddit data doesn't work well with json marshalling
+// TODO: filter out parent post
 
 func (user *RedditorUser) LoadNewComments() []CommentData {
 	var collection []CommentData
@@ -143,9 +128,10 @@ func (user *RedditorUser) LoadNewComments() []CommentData {
 			log.Println("Failed retrieving comments for ", post.Name)
 		} else {
 			collection = append(collection, comments...)
-		}		
+		}
 	}
 
-	defer utils.SaveData(user.userId, "comments", &collection)
+	defer saveNewData[CommentData](user.Id, "comments", collection)
+	user.new_comments = collection
 	return collection
 }
