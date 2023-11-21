@@ -11,5 +11,7 @@ require (
 
 require (
 	github.com/andybalholm/cascadia v1.3.1 // indirect
+	github.com/mattn/go-sqlite3 v1.14.18 // indirect
+	github.com/replit/database-go v0.1.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
 )

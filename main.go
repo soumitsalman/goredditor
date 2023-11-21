@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	rapp "angerproject.org/redditor/redditapplication"
+	db "github.com/replit/database-go"
 )
 
 // this is for pure data collection
@@ -54,14 +55,27 @@ func takeActions(user *rapp.RedditorUser) {
 // primary orchestrator
 func main() {
 
-	user := rapp.NewUserConnection("soumitsr@gmail.com")
+	/*
+		user := rapp.NewUserConnection("soumitsr@gmail.com")
 
-	if user.Authenticate() == "" {
-		return
-	}
+		if user.Authenticate() == "" {
+			return
+		}
 
-	//daily collection
-	collectContents(&user)
-	takeActions(&user)
+		//daily collection
+		collectContents(&user)
+		takeActions(&user)
+	*/
 
+	//setting up app config
+
+	db.Set("datastore_location", "/home/soumitsr/Codes/reddit_data_dump/")
+
+	/*
+		db.Get("client_name", "gor3ddit0r")
+		db.Set("client_description", "This is an open source golang library for using https://www.reddit.com/dev/api/")
+		db.Set("about_url", "https://github.com/soumitsalman/goredditor#readme")
+		db.Set("redirect_uri", "http://localhost:8080/callback")
+		db.Set("datastore_location", "/home/soumitsr/Codes/reddit_data_dump/datastore.db")
+	*/
 }

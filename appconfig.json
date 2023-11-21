@@ -3,4 +3,5 @@
   "client_description": "This is an open source golang library for using https://www.reddit.com/dev/api/",
   "about_url": "https://github.com/soumitsalman/goredditor#readme",
   "redirect_uri": "http://localhost:8080/callback"
+  "datastore_location": "/home/soumitsr/Codes/reddit_data_dump/datastore.db"
 }

@@ -1,14 +1,40 @@
 package redditapplication
 
 import (
+	"database/sql"
 	"log"
-	"os"
 
 	"angerproject.org/redditor/utils"
+	configdb "github.com/replit/database-go"
 )
 
 // <START DATASTORE related functions.>
 // TODO: push the content to DB
+
+type RedditorDataStore struct {
+}
+
+func getDataStoreLocation() string {
+	//application config
+	loc, _ := configdb.Get("datastore_location")
+	return loc
+}
+
+func getDataStoreConnection() *sql.DB {
+	db, err := sql.Open("sqlite3", getDataStoreLocation())
+	if err != nil {
+		log.Fatal(err)
+	}
+	return db
+}
+
+func closeDataStoreConnection(db *sql.DB) {
+	db.Close()
+}
+
+func saveNewRedditData(db *sql.DB, item_kind string, value string) {
+	db.ex
+}
 
 func saveNewData[T RedditData[T]](userId string, topic string, data []T) {
 	//saving the blob
@@ -16,7 +42,7 @@ func saveNewData[T RedditData[T]](userId string, topic string, data []T) {
 		"topic": topic,
 		topic:   data,
 	}
-	var filename = os.Getenv("DATASTORE_LOCATION") + userId + "_" + topic + ".json"
+	var filename = getDataStoreLocation() + userId + "_" + topic + ".json"
 	if utils.WriteDataToJsonFile(&content, filename) == nil {
 		log.Printf("Saved %s in %s\n", topic, filename)
 	} else {
@@ -27,7 +53,7 @@ func saveNewData[T RedditData[T]](userId string, topic string, data []T) {
 }
 
 func readExistingData[T any](userId string, topic string) (T, error) {
-	var filename = os.Getenv("DATASTORE_LOCATION") + userId + "_" + topic + ".json"
+	var filename = getDataStoreLocation() + userId + "_" + topic + ".json"
 	return utils.ReadDataFromJsonFile[T](filename)
 }
 
@@ -49,7 +75,7 @@ func saveStateData[T RedditData[T]](userId string, data []T, state string) {
 			list[name] = state
 		}
 	}
-	var filename = os.Getenv("DATASTORE_LOCATION") + userId + "_states" + ".json"
+	var filename = getDataStoreLocation() + userId + "_states" + ".json"
 	if utils.WriteDataToJsonFile(&list, filename) == nil {
 		log.Printf("Saved %s in %s\n", topic, filename)
 	} else {

@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"angerproject.org/redditor/utils"
-	"github.com/joho/godotenv"
 )
 
 const APP_CONFIG_FILE = "appconfig.json"
@@ -28,8 +27,9 @@ func NewUserConnection(userId string) RedditorUser {
 	} else {
 		userSession.client = NewClient(&config)
 	}
+	//TODO: remove the dotenv loading since replit is handling the environment variable
 	//loading secrets from environment variable
-	godotenv.Load()
+	//godotenv.Load()
 	//TODO: in future read these from a secret store
 	userSession.client.creds.ApplicationId = os.Getenv("GOREDDITOR_APP_ID")
 	userSession.client.creds.ApplicationSecret = os.Getenv("GOREDDITOR_APP_SECRET")
