@@ -2,40 +2,35 @@ package redditapplication
 
 import (
 	"log"
-	"os"
-
-	"angerproject.org/redditor/utils"
 )
-
-const APP_CONFIG_FILE = "appconfig.json"
 
 type RedditorUser struct {
 	Id           string
 	client       RedditorApplication
-	existing_sr  []SubredditData
-	new_sr       []SubredditData
-	new_posts    []PostData
-	new_comments []CommentData
+	existing_sr  []RedditData
+	new_sr       []RedditData
+	new_posts    []RedditData
+	new_comments []RedditData
 }
 
 // TODO: return error if it cant find user name variables
 func NewUserConnection(userId string) RedditorUser {
-	userSession := RedditorUser{Id: userId}
-	if config, err := utils.ReadDataFromJsonFile[RedditorCredentials](APP_CONFIG_FILE); err != nil {
-		log.Println("Failed loading application config")
-		return userSession
-	} else {
-		userSession.client = NewClient(&config)
+	var creds RedditorCredentials = RedditorCredentials{
+		//TODO: in future read these from a secret store
+		ApplicationName:        getAppName(),
+		ApplicationDescription: getAppDescription(),
+		AboutUrl:               getAboutUrl(),
+		RedirectUri:            getRedirectUri(),
+		ApplicationId:          getAppId(),
+		ApplicationSecret:      getAppSecret(),
+		Username:               getLocalUserName(),
+		Password:               getLocalUserPw(),
 	}
-	//TODO: remove the dotenv loading since replit is handling the environment variable
-	//loading secrets from environment variable
-	//godotenv.Load()
-	//TODO: in future read these from a secret store
-	userSession.client.creds.ApplicationId = os.Getenv("GOREDDITOR_APP_ID")
-	userSession.client.creds.ApplicationSecret = os.Getenv("GOREDDITOR_APP_SECRET")
-	userSession.client.creds.Username = os.Getenv("REDDIT_LOCAL_USER_NAME")
-	userSession.client.creds.Password = os.Getenv("REDDIT_LOCAL_USER_PW")
-	userSession.client.creds.OauthToken = os.Getenv("REDDIT_LOCAL_USER_AUTH_TOKEN")
+	userSession := RedditorUser{
+		Id:     userId,
+		client: NewClient(&creds),
+	}
+	initializeDataStores()
 
 	return userSession
 }
@@ -53,19 +48,19 @@ func (user *RedditorUser) Authenticate() string {
 	return user.client.creds.OauthToken
 }
 
-func (user *RedditorUser) LoadExistingSubreddits() []SubredditData {
+func (user *RedditorUser) LoadExistingSubreddits() []RedditData {
 	if sr_collection, err := user.client.Subreddits(); err != nil {
 		log.Printf("Getting subreddits failed: %v\n", err)
 	} else {
-		defer saveNewData[SubredditData](user.Id, "subscribed_subreddits", sr_collection)
+		// TODO: save to a table
 		user.existing_sr = sr_collection
 	}
 	return user.existing_sr
 }
 
-func (user *RedditorUser) LoadNewSubreddits() []SubredditData {
+func (user *RedditorUser) LoadNewSubreddits() []RedditData {
 
-	var collection []SubredditData
+	var collection []RedditData
 
 	// search with areas of interest
 	for _, area := range user.GetAreasOfInterest() {
@@ -75,7 +70,7 @@ func (user *RedditorUser) LoadNewSubreddits() []SubredditData {
 	}
 
 	// collect similar subreddits
-	var similar []SubredditData
+	var similar []RedditData
 	for _, sr := range collection {
 		if res, err := user.client.SimilarSubreddits(sr.Name); err == nil {
 			similar = append(similar, res...)
@@ -83,14 +78,14 @@ func (user *RedditorUser) LoadNewSubreddits() []SubredditData {
 	}
 	collection = append(collection, similar...)
 
-	defer saveNewData[SubredditData](user.Id, "recommended_subreddits", collection)
+	defer saveNewItemsToDB(user.Id, SUBREDDIT, collection)
 	user.new_sr = collection
 	return user.new_sr
 }
 
-func (user *RedditorUser) LoadNewPosts() []PostData {
+func (user *RedditorUser) LoadNewPosts() []RedditData {
 
-	var collection []PostData // this is the value to be return
+	var collection []RedditData // this is the value to be return
 
 	// prepping the scope of subreddits to search for.
 	var sr_in_scope = []string{""}
@@ -110,7 +105,7 @@ func (user *RedditorUser) LoadNewPosts() []PostData {
 		}
 	}
 	// save it in a file
-	defer saveNewData[PostData](user.Id, "posts", collection)
+	defer saveNewItemsToDB(user.Id, POST, collection)
 	user.new_posts = collection
 	return user.new_posts
 }
@@ -120,8 +115,8 @@ func (user *RedditorUser) LoadNewPosts() []PostData {
 // Also it does not go deepder than 1 layer of comments. The reddit data doesn't work well with json marshalling
 // TODO: filter out parent post
 
-func (user *RedditorUser) LoadNewComments() []CommentData {
-	var collection []CommentData
+func (user *RedditorUser) LoadNewComments() []RedditData {
+	var collection []RedditData
 
 	for _, post := range user.new_posts {
 		if comments, err := user.client.RetrieveComments(post); err != nil {
@@ -131,7 +126,7 @@ func (user *RedditorUser) LoadNewComments() []CommentData {
 		}
 	}
 
-	defer saveNewData[CommentData](user.Id, "comments", collection)
+	defer saveNewItemsToDB(user.Id, COMMENT, collection)
 	user.new_comments = collection
 	return collection
 }

@@ -1,102 +1,80 @@
 package redditapplication
 
 import (
-	"database/sql"
-	"log"
+	"strings"
 
-	"angerproject.org/redditor/utils"
-	configdb "github.com/replit/database-go"
+	cs "github.com/soumitsalman/goredditor/socialmediadatastore/contentstore"
+	pq "github.com/soumitsalman/goredditor/socialmediadatastore/processingqueue"
+	"github.com/soumitsalman/goredditor/utils"
 )
 
-// <START DATASTORE related functions.>
-// TODO: push the content to DB
-
-type RedditorDataStore struct {
+func initializeDataStores() {
+	cs.InitializeContentStoreClient()
+	pq.InitializeProcessingQueues()
 }
 
-func getDataStoreLocation() string {
-	//application config
-	loc, _ := configdb.Get("datastore_location")
-	return loc
+func saveNewItemsToDB(user_id string, item_kind string, items []RedditData) {
+	cs.AddNewItems(item_kind, getNormalizedDataForCS(item_kind, items))
+	pq.BatchQue(pq.NEW, getNormalizedDataForPQ(user_id, "www.reddit.com", items))
 }
 
-func getDataStoreConnection() *sql.DB {
-	db, err := sql.Open("sqlite3", getDataStoreLocation())
-	if err != nil {
-		log.Fatal(err)
-	}
-	return db
-}
+func getNormalizedDataForCS(item_kind string, items []RedditData) []cs.ContentStoreData {
+	ds_items := make([]cs.ContentStoreData, len(items))
+	for i, v := range items {
+		ds_items[i] = cs.ContentStoreData{
+			//applies to all
+			Name:        v.Name,
+			Id:          v.Id,
+			Title:       v.Title,
+			Kind:        v.Kind,
+			CreatedDate: v.CreatedDate,
 
-func closeDataStoreConnection(db *sql.DB) {
-	db.Close()
-}
+			//applies to subreddit
+			NumSubscribers: v.NumSubscribers,
 
-func saveNewRedditData(db *sql.DB, item_kind string, value string) {
-	db.ex
-}
-
-func saveNewData[T RedditData[T]](userId string, topic string, data []T) {
-	//saving the blob
-	var content = map[string]any{
-		"topic": topic,
-		topic:   data,
-	}
-	var filename = getDataStoreLocation() + userId + "_" + topic + ".json"
-	if utils.WriteDataToJsonFile(&content, filename) == nil {
-		log.Printf("Saved %s in %s\n", topic, filename)
-	} else {
-		log.Printf("Failed to save %s\n", topic)
-	}
-	//saving the state
-	saveStateData[T](userId, data, NEW)
-}
-
-func readExistingData[T any](userId string, topic string) (T, error) {
-	var filename = getDataStoreLocation() + userId + "_" + topic + ".json"
-	return utils.ReadDataFromJsonFile[T](filename)
-}
-
-func saveStateData[T RedditData[T]](userId string, data []T, state string) {
-	topic := "states"
-	list := make(map[string]string)
-	if states, err := readExistingData[map[string]string](userId, topic); err == nil {
-		//this means there is already some states content
-		list = states
-	}
-
-	for _, v := range data {
-		name := v.GetUniqueName()
-		if sval, ok := list[name]; ok {
-			//if it does exist then push
-			list[name] = newerStateValue(state, sval)
-		} else {
-			//update with the {state} value
-			list[name] = state
+			//applies to post and comment
+			Channel:     v.Subreddit,
+			Author:      v.Author,
+			Score:       v.Score,
+			UpvoteRatio: v.UpvoteRatio,
+			NumComments: v.NumComments,
+			Url:         ensureRedditDotCom(v.Link),
+		}
+		//special field overrides
+		switch v.Kind {
+		case SUBREDDIT:
+			ds_items[i].Channel = v.DisplayName
+			ds_items[i].Text = utils.ExtractTextFromHtml(v.PublicDescription) + "\n" + utils.ExtractTextFromHtml(v.Description)
+			ds_items[i].Category = v.SubredditCategory
+		case POST:
+			ds_items[i].Text = v.PostText + " " + v.Url
+		case COMMENT:
+			ds_items[i].Parent = v.Parent
+			ds_items[i].Text = v.CommentBody
+			ds_items[i].Category = v.PostCategory
 		}
 	}
-	var filename = getDataStoreLocation() + userId + "_states" + ".json"
-	if utils.WriteDataToJsonFile(&list, filename) == nil {
-		log.Printf("Saved %s in %s\n", topic, filename)
-	} else {
-		log.Printf("Failed to save %s\n", topic)
-	}
+	return ds_items
 }
 
-func newerStateValue(v1, v2 string) string {
-	if v1 > v2 {
-		return v1
+func getNormalizedDataForPQ(user_id string, source string, items []RedditData) []pq.ContentStoreDataRef {
+	pq_items := make([]pq.ContentStoreDataRef, len(items))
+	for i, v := range items {
+		pq_items[i] = pq.ContentStoreDataRef{
+			UserId: user_id,
+			Source: source,
+			Name:   v.Name,
+		}
 	}
-	return v2
+	return pq_items
 }
 
-const (
-	NEW              = "0_new"
-	INTERESTING      = "1_interesting"
-	SHORT_LISTED     = "2_short_listed"
-	ACTION_SUGGESTED = "3_action_suggested"
-	ACTION_TAKEN     = "4_action_taken"
-	IGNORE           = "9_ignore"
-)
+// prefixes www.reddit.com to the URL it it is not there
+func ensureRedditDotCom(url string) string {
+	if !strings.HasPrefix(url, REDDIT_PRETTY_URL) {
+		return REDDIT_PRETTY_URL + url
+	}
+	return url
+}
 
-// <END DATASTORE related functionality>
+const REDDIT_PRETTY_URL = "www.reddit.com"

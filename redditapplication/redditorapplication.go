@@ -10,11 +10,11 @@ import (
 type RedditorCredentials struct {
 	OauthToken             string
 	ApplicationSecret      string
-	ApplicationName        string `json:"client_name"`
+	ApplicationName        string
 	ApplicationId          string
-	ApplicationDescription string `json:"client_description"`
-	AboutUrl               string `json:"about_url"`
-	RedirectUri            string `json:"redirect_uri"`
+	ApplicationDescription string
+	AboutUrl               string
+	RedirectUri            string
 	Username               string
 	Password               string
 }
