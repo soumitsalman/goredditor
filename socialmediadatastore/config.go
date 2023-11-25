@@ -1,9 +1,29 @@
-package dataprocessingqueue
+package socialmediadatastore
 
 import (
 	"os"
 	"strconv"
 )
+
+func getContentStoreConnection() string {
+	return os.Getenv("AZ_COSMOSDB_CONNECTION")
+}
+
+func getContentStoreDB() string {
+	return os.Getenv("CONTENT_STORE_DB")
+}
+
+func getRedditStoreContainer() string {
+	return os.Getenv("REDDIT_STORE_CONTAINER")
+}
+
+func getUserMetadataContainer() string {
+	return os.Getenv("USER_METADATA_CONTAINER")
+}
+
+func getUserActionContainer() string {
+	return os.Getenv("USER_CONTENT_CONTAINER")
+}
 
 func getServiceBusConnection() string {
 	return os.Getenv("AZ_SERVICE_BUS_CONNECTION")

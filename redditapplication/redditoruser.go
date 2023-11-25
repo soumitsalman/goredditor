@@ -54,6 +54,7 @@ func (user *RedditorUser) LoadExistingSubreddits() []RedditData {
 	} else {
 		// TODO: save to a table
 		user.existing_sr = sr_collection
+		log.Printf("Retrieved subscribed subreddits, Count: %d\n", len(sr_collection))
 	}
 	return user.existing_sr
 }
@@ -77,8 +78,6 @@ func (user *RedditorUser) LoadNewSubreddits() []RedditData {
 		}
 	}
 	collection = append(collection, similar...)
-
-	defer saveNewItemsToDB(user.Id, SUBREDDIT, collection)
 	user.new_sr = collection
 	return user.new_sr
 }
@@ -87,25 +86,24 @@ func (user *RedditorUser) LoadNewPosts() []RedditData {
 
 	var collection []RedditData // this is the value to be return
 
+	/* TODO: delete this. it becomes unnecessary since i am collecting the tops from each subreddit anywway
 	// prepping the scope of subreddits to search for.
 	var sr_in_scope = []string{""}
 	for _, v := range user.existing_sr {
 		sr_in_scope = append(sr_in_scope, v.DisplayName)
 	}
-
+	*/
 	// for subreddit in scope each post type iterate for each
-	for _, subreddit := range sr_in_scope {
+	for _, subreddit := range user.existing_sr {
 		for _, pt := range []string{"hot", "top", "best"} {
-			if post_collection, err := user.client.Posts(subreddit, pt); err != nil {
-				log.Printf("Getting %v post from r/%v failed: %v\n", pt, subreddit, err)
+			if post_collection, err := user.client.Posts(subreddit.DisplayName, pt); err != nil {
+				log.Printf("Getting %s post from r/%s failed: %v\n", pt, subreddit.DisplayName, err)
 			} else {
 				collection = append(collection, post_collection...)
-				log.Printf("Retrieved %v posts from r/%v\n", pt, subreddit)
+				log.Printf("Retrieved %s posts from r/%s\n", pt, subreddit.DisplayName)
 			}
 		}
 	}
-	// save it in a file
-	defer saveNewItemsToDB(user.Id, POST, collection)
 	user.new_posts = collection
 	return user.new_posts
 }
@@ -125,8 +123,21 @@ func (user *RedditorUser) LoadNewComments() []RedditData {
 			collection = append(collection, comments...)
 		}
 	}
-
-	defer saveNewItemsToDB(user.Id, COMMENT, collection)
 	user.new_comments = collection
-	return collection
+	return user.new_comments
+}
+
+func (user *RedditorUser) SaveNewFilteredContents() {
+	// TODO: do some pre-filtering like if the subreddit has less than 500 people, dump it
+	if user.new_sr != nil {
+		saveNewItemsToDB(user.Id, SUBREDDIT, user.new_sr)
+	}
+	// TODO: do some pre-filtering like if the post is older than 2 weeks, dump it
+	if user.new_posts != nil {
+		saveNewItemsToDB(user.Id, POST, user.new_posts)
+	}
+	// TODO: do some pre-filtering like if the comment is older than  weeks, dump it
+	if user.new_comments != nil {
+		saveNewItemsToDB(user.Id, COMMENT, user.new_comments)
+	}
 }

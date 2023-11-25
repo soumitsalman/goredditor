@@ -1,4 +1,4 @@
-package dataprocessingqueue
+package socialmediadatastore
 
 import (
 	ctx "context"
@@ -19,12 +19,6 @@ const (
 	IGNORE       = "9_ignore"
 )
 
-type ContentStoreDataRef struct {
-	Name   string `json:"name"`
-	Source string `json:"source"`
-	UserId string `json:"user_id"`
-}
-
 func getQueueName(item_type string) string {
 	switch item_type {
 	case NEW:
@@ -40,10 +34,10 @@ func getQueueName(item_type string) string {
 	}
 }
 
-func createSbMsg(item *ContentStoreDataRef) *azservicebus.Message {
+func createSbMsg(item *UserActionData) azservicebus.Message {
 	body, _ := json.Marshal(item) //standard json blob, no error expected here
 	msg := azservicebus.Message{Body: body}
-	return &msg
+	return msg
 }
 
 func InitializeProcessingQueues() *azservicebus.Client {
@@ -61,11 +55,12 @@ func InitializeProcessingQueues() *azservicebus.Client {
 	return client
 }
 
-func Que(process_stage string, data *ContentStoreDataRef) bool {
+func Que(process_stage string, data *UserActionData) bool {
 	sender, _ := queue_client.NewSender(getQueueName(process_stage), nil)
 	defer sender.Close(ctx.Background())
 
-	if err := sender.SendMessage(ctx.Background(), createSbMsg(data), nil); err != nil {
+	msg := createSbMsg(data)
+	if err := sender.SendMessage(ctx.Background(), &msg, nil); err != nil {
 		//just log sending the message. precision is not a target here
 		log.Println("Failed sending message: ", err)
 		return false
@@ -74,28 +69,30 @@ func Que(process_stage string, data *ContentStoreDataRef) bool {
 }
 
 // adds an entire array in the que
-func BatchQue(process_stage string, data []ContentStoreDataRef) bool {
-	sender, _ := queue_client.NewSender(getQueueName(process_stage), nil)
-	defer sender.Close(ctx.Background())
+func BatchQue(process_stage string, items []UserActionData) {
+	if len(items) > 0 {
 
-	msg_batch, _ := sender.NewMessageBatch(ctx.Background(), nil)
-	for _, item := range data {
-		msg_batch.AddMessage(createSbMsg(&item), nil)
-	}
+		sender, _ := queue_client.NewSender(getQueueName(process_stage), nil)
+		defer sender.Close(ctx.Background())
 
-	if err := sender.SendMessageBatch(ctx.Background(), msg_batch, nil); err != nil {
-		//just log sending the message. precision is not a target here
-		log.Println("Failed sending message batch: ", err)
-		return false
+		msg_batch, _ := sender.NewMessageBatch(ctx.Background(), nil)
+		for i := range items {
+			msg := createSbMsg(&items[i])
+			msg_batch.AddMessage(&msg, nil)
+		}
+
+		if err := sender.SendMessageBatch(ctx.Background(), msg_batch, nil); err != nil {
+			//just log sending the message. precision is not a target here
+			log.Println("Failed sending message batch: ", err)
+		}
 	}
-	return true
 }
 
 // returns an array of items in the queue based on the process stage
 // if there is no item in the queue it will block until there is at least one item
 // if there are items in the queue then it will return at most MAX_BATCH_SIZE number of items at a time
 // if the number of item <= MAX_BATCH_SIZE it will return all the items in the queue
-func Deque(process_stage string) []ContentStoreDataRef {
+func Deque(process_stage string) []UserActionData {
 	rcvr, _ := queue_client.NewReceiverForQueue(getQueueName(process_stage), nil)
 	defer rcvr.Close(ctx.Background())
 
@@ -103,7 +100,7 @@ func Deque(process_stage string) []ContentStoreDataRef {
 	// its doesnt matter if the current queue has less that MAX_BATCH_SIZE, the queue will return however many items there are
 	// as long as there is at least 1 item and will cap the return to MAX_BATCH_SIZE
 	messages, _ := rcvr.ReceiveMessages(ctx.Background(), getMaxBatchSize(), nil)
-	resp := make([]ContentStoreDataRef, len(messages))
+	resp := make([]UserActionData, len(messages))
 	for i, msg := range messages {
 		json.Unmarshal(msg.Body, &resp[i])
 		rcvr.CompleteMessage(ctx.Background(), msg, nil)
