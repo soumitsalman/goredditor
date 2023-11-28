@@ -5,15 +5,15 @@ import (
 
 	"github.com/joho/godotenv"
 	rapp "github.com/soumitsalman/goredditor/redditapplication"
-	ds "github.com/soumitsalman/goredditor/socialmediadatastore"
 )
 
 // this is for pure data collection
 func collectContents(user *rapp.RedditorUser) {
+	// this sequence matters
 	user.LoadExistingSubreddits()
 	user.LoadNewPosts()
-	//user.LoadNewComments()
-	//user.LoadNewSubreddits()
+	user.LoadNewComments()
+	user.LoadNewSubreddits()
 	user.SaveNewFilteredContents()
 }
 
@@ -59,20 +59,20 @@ func main() {
 
 	godotenv.Load()
 
-	rapp.NewUserConnection("soumitsr@gmail.com")
+	user := rapp.NewUserConnection("soumitsr@gmail.com")
 
 	//CLEAN UP
-	for i := 0; i < 120; i++ {
+	/* for i := 0; i < 120; i++ {
 		fmt.Println(len(ds.Deque(ds.NEW)))
 	}
-
-	// if user.Authenticate() == "" {
-	// 	return
-	// }
+	*/
+	if user.Authenticate() == "" {
+		return
+	}
 
 	//daily collection
-	//collectContents(&user)
-	//takeActions(&user)
+	collectContents(&user)
+	takeActions(&user)
 	//ds.TEST_query(user.Id)
 
 }

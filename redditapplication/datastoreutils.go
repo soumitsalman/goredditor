@@ -56,9 +56,6 @@ func getNormalizedData(user_id string, item_kind string, items []RedditData) ([]
 			Kind:        v.Kind,
 			CreatedDate: v.CreatedDate,
 
-			//applies to subreddit
-			NumSubscribers: v.NumSubscribers,
-
 			//applies to post and comment
 			Channel:     v.Subreddit,
 			Author:      v.Author,
@@ -73,12 +70,15 @@ func getNormalizedData(user_id string, item_kind string, items []RedditData) ([]
 			ds_items[i].Channel = v.DisplayName
 			ds_items[i].Text = utils.ExtractTextFromHtml(v.PublicDescription) + "\n" + utils.ExtractTextFromHtml(v.Description)
 			ds_items[i].Category = v.SubredditCategory
+			ds_items[i].NumSubscribers = v.NumSubscribers
 		case POST:
 			ds_items[i].Text = v.PostText + " " + v.Url
+			ds_items[i].NumSubscribers = v.SubredditSubscribers			
 		case COMMENT:
 			ds_items[i].Parent = v.Parent
 			ds_items[i].Text = v.CommentBody
 			ds_items[i].Category = v.PostCategory
+			ds_items[i].NumSubscribers = v.SubredditSubscribers						
 		}
 
 		// transform for processing queue and user content tracking

@@ -65,6 +65,8 @@ type RedditData struct {
 	NumComments int `json:"num_comments"`
 	// Number of subscribers to a channel (subreddit). Doesn't apply to posts or comments
 	NumSubscribers int `json:"subscribers"`
+	// this applies to posts and comments to indicate the same thing as above
+	SubredditSubscribers int `json:"subreddit_subscribers"`
 	// Applies to subreddit posts and comments. Doesn't apply to subreddits
 	UpvoteRatio float64 `json:"upvote_ratio"`
 }
