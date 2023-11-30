@@ -2,6 +2,7 @@ package redditapplication
 
 import (
 	"log"
+	"strings"
 )
 
 type RedditorUser struct {
@@ -139,5 +140,14 @@ func (user *RedditorUser) SaveNewFilteredContents() {
 	// TODO: do some pre-filtering like if the comment is older than  weeks, dump it
 	if user.new_comments != nil {
 		saveNewItemsToDB(user.Id, COMMENT, user.new_comments)
+	}
+}
+
+func (user *RedditorUser) TakeUserActions() {
+	ua_data, content_data := getUserActionsAndContents()
+	for i := 0; i < len(ua_data); i++ {
+		if strings.ToLower(ua_data[i].Action) == "sub" {
+			user.client.Subscribe(content_data[i].Channel)
+		}
 	}
 }

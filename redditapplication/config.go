@@ -1,6 +1,9 @@
 package redditapplication
 
-import "os"
+import (
+	"os"
+	"strconv"
+)
 
 func getAppName() string {
 	return os.Getenv("GOREDDITOR_APP_NAME")
@@ -36,4 +39,9 @@ func getLocalUserPw() string {
 
 func getDataStoreLocation() string {
 	return os.Getenv("DATASTORE_LOCATION")
+}
+
+func getMaxTextSize() int {
+	val, _ := strconv.Atoi(os.Getenv("MAX_TEXT_SIZE"))
+	return val
 }

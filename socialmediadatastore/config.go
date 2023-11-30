@@ -3,6 +3,7 @@ package socialmediadatastore
 import (
 	"os"
 	"strconv"
+	"time"
 )
 
 func getContentStoreConnection() string {
@@ -48,4 +49,9 @@ func getUserActionsQueue() string {
 func getMaxBatchSize() int {
 	val, _ := strconv.Atoi(os.Getenv("MAX_BATCH_SIZE"))
 	return val
+}
+
+func getMaxWaitTime() time.Duration {
+	val, _ := strconv.Atoi(os.Getenv("MAX_WAIT_TIME"))
+	return time.Duration(val) * time.Second
 }

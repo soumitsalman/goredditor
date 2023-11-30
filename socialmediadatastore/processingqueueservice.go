@@ -93,17 +93,21 @@ func BatchQue(process_stage string, items []UserActionData) {
 // if there are items in the queue then it will return at most MAX_BATCH_SIZE number of items at a time
 // if the number of item <= MAX_BATCH_SIZE it will return all the items in the queue
 func Deque(process_stage string) []UserActionData {
+
+	rcvr_ctx, cancel := ctx.WithTimeout(ctx.Background(), getMaxWaitTime())
+	defer cancel()
+
 	rcvr, _ := queue_client.NewReceiverForQueue(getQueueName(process_stage), nil)
-	defer rcvr.Close(ctx.Background())
+	defer rcvr.Close(rcvr_ctx)
 
 	// lesson learned: you dont need a timeout context if you are willing to wait for at least one message
 	// its doesnt matter if the current queue has less that MAX_BATCH_SIZE, the queue will return however many items there are
 	// as long as there is at least 1 item and will cap the return to MAX_BATCH_SIZE
-	messages, _ := rcvr.ReceiveMessages(ctx.Background(), getMaxBatchSize(), nil)
+	messages, _ := rcvr.ReceiveMessages(rcvr_ctx, getMaxBatchSize(), nil)
 	resp := make([]UserActionData, len(messages))
 	for i, msg := range messages {
 		json.Unmarshal(msg.Body, &resp[i])
-		rcvr.CompleteMessage(ctx.Background(), msg, nil)
+		rcvr.CompleteMessage(rcvr_ctx, msg, nil)
 	}
 
 	return resp

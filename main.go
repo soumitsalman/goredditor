@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/joho/godotenv"
 	rapp "github.com/soumitsalman/goredditor/redditapplication"
 )
@@ -19,7 +17,7 @@ func collectContents(user *rapp.RedditorUser) {
 
 // this is for ONLY making posts and subscribing to new subreddits
 func takeActions(user *rapp.RedditorUser) {
-	fmt.Println("TODO: implement it")
+	user.TakeUserActions()
 
 	/*
 		sr_name := "reddit_api_test"
@@ -71,7 +69,7 @@ func main() {
 	}
 
 	//daily collection
-	collectContents(&user)
+	// collectContents(&user)
 	takeActions(&user)
 	//ds.TEST_query(user.Id)
 

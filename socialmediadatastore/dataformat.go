@@ -51,8 +51,8 @@ type UserActionData struct {
 	Source        string `json:"source"`
 	UserId        string `json:"user_id"`
 	Processed     bool   `json:"processed,omitempty"`
-	UserAction    string `json:"useraction,omitempty"`
-	ActionContent string `json:"actioncontent,omitempty"`
+	Action        string `json:"action,omitempty"`
+	ActionContent string `json:"content,omitempty"`
 }
 
 type UserMetadata struct {

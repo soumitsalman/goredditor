@@ -3,13 +3,13 @@ package socialmediadatastore
 import (
 	ctx "context"
 	"encoding/json"
-	"fmt"
 	"log"
 
 	cosmos "github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
+	"github.com/soumitsalman/goredditor/utils"
 )
 
-var content_store_client *cosmos.Client
+var cosmos_client *cosmos.Client
 var content_store_db *cosmos.DatabaseClient
 var reddit_store *cosmos.ContainerClient
 var user_metadata *cosmos.ContainerClient
@@ -18,9 +18,9 @@ var user_action_store *cosmos.ContainerClient
 const MAX_BATCH_SIZE = 99
 
 func InitializeContentStoreClient() *cosmos.Client {
-	if content_store_client != nil {
+	if cosmos_client != nil {
 		// no need to process further
-		return content_store_client
+		return cosmos_client
 	}
 
 	// establish connection
@@ -29,10 +29,10 @@ func InitializeContentStoreClient() *cosmos.Client {
 		log.Println("Failed connecting to AZ Cosmos DB instance: ", err)
 		return nil
 	}
-	content_store_client = client
+	cosmos_client = client
 
 	// get instance of the DB
-	db, err := content_store_client.NewDatabase(getContentStoreDB())
+	db, err := cosmos_client.NewDatabase(getContentStoreDB())
 	if err != nil {
 		log.Println("Failed finding content store DB: ", err)
 		return nil
@@ -60,21 +60,7 @@ func InitializeContentStoreClient() *cosmos.Client {
 	}
 	user_action_store = c2
 
-	return content_store_client
-}
-
-// TODO: delete later. This is solely for debugging purpose
-func addToUserContentStore__V2(items []UserActionData) {
-	// throttle batch size since comosDB expects less than MAX_BATCH_SIZE operations in a batch
-
-	for _, item := range items {
-		payload, _ := json.Marshal(item)
-		if resp, err := user_action_store.CreateItem(ctx.Background(), cosmos.NewPartitionKeyString(item.UserId), payload, nil); err != nil {
-			log.Println("Failed inserting items: ", err)
-		} else {
-			log.Printf("Status %d. ActivityId %s. Consuming %v Request Units. %v\n", resp.RawResponse.StatusCode, resp.ActivityID, resp.RequestCharge, resp.Response)
-		}
-	}
+	return cosmos_client
 }
 
 // this assumes that all items are of the same kind
@@ -93,6 +79,7 @@ func AddToUserActionStore(items []UserActionData) {
 	}
 }
 
+// TODO: make some serious overhaul. NOT sure if we even need a user action storage
 func GetExistingUserActionsContentIds(user_id string, source string) []string {
 	query := "SELECT c.content_id FROM c WHERE c.user_id=@user_id AND c.source=@source"
 	q_opt := cosmos.QueryOptions{
@@ -119,33 +106,19 @@ func GetExistingUserActionsContentIds(user_id string, source string) []string {
 	return result
 }
 
-func _TEST_query(user_id string) {
-
-	query := "SELECT c.content_id FROM c WHERE NOT ARRAY_CONTAINS(@existing_list,  c.content_id)"
-	q_opt := cosmos.QueryOptions{
-		QueryParameters: []cosmos.QueryParameter{
-			{Name: "@existing_list", Value: []string{"t3_182w4cz", "t3_182y2qf", "t3_182d4bi"}},
-		},
-	}
-	resp_pager := user_action_store.NewQueryItemsPager(query, cosmos.NewPartitionKeyString(user_id), &q_opt)
-	for resp_pager.More() {
-		if resp, err := resp_pager.NextPage(ctx.Background()); err == nil {
-			for _, item := range resp.Items {
-				var data UserActionData
-				json.Unmarshal(item, &data)
-				fmt.Println(data.ContentId)
-			}
-		} else {
-			log.Println(err)
-		}
-	}
+func GetContentFromStore(content_id string) ContentStoreData {
+	// change the partition key
+	item_resp, _ := reddit_store.ReadItem(ctx.Background(), cosmos.NewPartitionKeyString("subreddit"), content_id, nil)
+	var data ContentStoreData
+	json.Unmarshal(item_resp.Value, &data)
+	return data
 }
 
 func addInBatches[T any](container *cosmos.ContainerClient, partition_key string, items []T) {
 	// throttle batch size since comosDB expects less than MAX_BATCH_SIZE operations in a batch
 	for len(items) > 0 {
 		batch := container.NewTransactionalBatch(cosmos.NewPartitionKeyString(partition_key))
-		count := min(getMaxBatchSize(), len(items))
+		count := utils.MinInt(getMaxBatchSize(), len(items))
 		for _, v := range items[0:count] {
 			payload, _ := json.Marshal(v)
 			batch.UpsertItem(payload, nil)
@@ -158,11 +131,4 @@ func addInBatches[T any](container *cosmos.ContainerClient, partition_key string
 		}
 		items = items[count:]
 	}
-}
-
-func min(a int, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

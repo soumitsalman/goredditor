@@ -31,3 +31,15 @@ func removeMultipleNewLines(str string) string {
 	white_space := regexp.MustCompile(`[\n]+`)
 	return white_space.ReplaceAllString(str, "\n")
 }
+
+func MinInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func TruncateString(content string, max_len int) string {
+	new_len := MinInt(len(content), max_len)
+	return content[0:new_len]
+}
